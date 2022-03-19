@@ -140,6 +140,18 @@ enum {
 };
 static atomic_t kpatch_state;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
+struct stack_trace {
+	unsigned int nr_entries, max_entries;
+	unsigned long *entries;
+	int skip;	/* input argument: How many entries to skip */
+};
+
+static unsigned int (*kpatch_stack_trace_save_tsk)(struct task_struct *task,
+				  unsigned long *store, unsigned int size,
+				  unsigned int skipnr);
+#endif
+
 static int (*kpatch_set_memory_rw)(unsigned long addr, int numpages);
 static int (*kpatch_set_memory_ro)(unsigned long addr, int numpages);
 
@@ -282,7 +294,13 @@ static int kpatch_verify_activeness_safety(struct kpatch_module *kpmod,
 	do_each_thread(g, t) {
 
 		trace.nr_entries = 0;
+
+		#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
+		kpatch_stack_trace_save_tsk(t, trace.entries, trace.max_entries, trace.skip);
+		#else
 		save_stack_trace_tsk(t, &trace);
+		#endif
+
 		if (trace.nr_entries >= trace.max_entries) {
 			ret = -EBUSY;
 			pr_err("more than %u trace entries!\n",
@@ -1286,6 +1304,14 @@ static struct notifier_block kpatch_module_nb_going = {
 static int kpatch_init(void)
 {
 	int ret;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
+	kpatch_stack_trace_save_tsk = (void *)kallsyms_lookup_name("stack_trace_save_tsk");
+	if (!kpatch_stack_trace_save_tsk) {
+		pr_err("can't find stack_trace_save_tsk symbol\n");
+		return -ENXIO;
+	}
+#endif
 
 	kpatch_set_memory_rw = (void *)kallsyms_lookup_name("set_memory_rw");
 	if (!kpatch_set_memory_rw) {
