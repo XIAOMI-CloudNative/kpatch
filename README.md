@@ -1,6 +1,18 @@
 kpatch: dynamic kernel patching
 ===============================
 
+### 改动内容：
+
+简单的为kpatch.ko适配了linux5.4.54
+
+如果内核未开启CONFIG_LIVEPATCH，请使用以下命令build和install
+
+``` sh
+# BUILDMOD=yes表示启用kpatch.ko模块
+make BUILDMOD=yes  
+make install BUILDMOD=yes
+```
+
 kpatch is a Linux dynamic kernel patching infrastructure which allows you to
 patch a running kernel without rebooting or restarting any processes.  It
 enables sysadmins to apply critical security patches to the kernel immediately,
